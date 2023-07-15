@@ -1,0 +1,165 @@
+<resources>
+    <string name="app_name">ActiveLook Speech</string>
+    <string name="large_text">
+        "This ActiveLook Speech app is design to be used with the Active Look glasses and communicate with them.\n\n"
+		"It shows in your eyes what the phone is hearing.\n"
+        "At the moment, I cannot translate it, because the speech recognition is not good enough.\n"
+        " Version : 2.2\n\n"
+    </string>
+    <string name="action_settings">Settings</string>
+    <string name="button_scan">Scan</string>
+    <string name="bubble_button">Bubble button</string>
+
+    <string name="app_version">v2.2</string>
+
+    <string name="switchBinary">Binary Mode</string>
+    <string name="ble_not_supported">BLE is not supported</string>
+    <string name="label_data">Data:</string>
+    <string name="label_device_address">Device address:</string>
+    <string name="label_state">State:</string>
+    <string name="no_data">No data</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="title_devices">BLE Device Scan</string>
+    <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
+
+    <string name="unknown_device">Unknown device</string>
+    <string name="unknown_characteristic">Unknown characteristic</string>
+    <string name="unknown_service">Unknown service</string>
+
+    <!-- Menu items -->
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_connect">Connection</string>
+    <string name="menu_disconnect">Disconnect</string>
+    <string name="menu_scan">Scan</string>
+    <string name="menu_stop">Stop</string>
+
+
+    <string name="demo">Demo</string>
+    <string name="tests">Tests</string>
+    <string name="cleardisplay">Clear Display</string>
+
+    <string name="ValueX">X = 0</string>
+    <string name="ValueY">Y = 0</string>
+
+    <string name="source">Choose source</string>
+    <string name="position">Get position</string>
+    <string name="adresse">Get adresse</string>
+
+    <string name="flechegauche">←</string>
+    <string name="flechehaut">↑</string>
+    <string name="flechebas">↓</string>
+    <string name="flechedroit">→</string>
+
+    <string name="X0">X0 :</string>
+    <string name="X0DefaultValue">15</string>
+    <string name="X1">X1 :</string>
+    <string name="X1DefaultValue">150</string>
+    <string name="Color">Color :</string>
+    <string name="ColorDefaultValue">15</string>
+    <string name="Radius">Radius :</string>
+    <string name="RadiusDefaultValue">50</string>
+
+    <string name="Y0">Y0 :</string>
+    <string name="Y0DefaultValue">15</string>
+    <string name="Y1">Y1 :</string>
+    <string name="Y1DefaultValue">150</string>
+    <string name="font">Font :</string>
+    <string name="FontDefaultValue">3</string>
+    <string name="Direction">Direction :</string>
+    <string name="DirectionDefaultValue">4</string>
+
+    <string name="text">Text :</string>
+
+    <string name="point">Point</string>
+    <string name="rectangle">Rectangle</string>
+    <string name="circle">Circle</string>
+    <string name="line">Line</string>
+    <string name="fillrectangle">Fill Rectangle</string>
+    <string name="filledcircle">Filled Circle</string>
+    <string name="streamingbitmap">Streaming Bitmap</string>
+    <string name="error_bluetooth_not_supported_debug">BLE is not supported, using stub SDK.</string>
+    <string name="bluetooth_activated">BLE activated</string>
+    <string name="stop_scan">Stop</string>
+    <string name="error_glass_connection">Could not connect to glasses</string>
+    <string name="button_test">Send command: Test</string>
+    <string name="switch_gesture">Gesture</string>
+    <string name="listitem_address">%1s - %2s</string>
+    <string name="button_general_commands">General</string>
+    <string name="button_back">Back</string>
+    <string name="button_display_luma_commands">Display luminance</string>
+    <string name="button_optical_sensor_commands">Optical sensor</string>
+    <string name="button_GPS_commands">GPS data</string>
+    <string name="button_graphics_commands">Graphics</string>
+    <string name="button_configuration_commands">Configuration</string>
+    <string name="button_font_commands">Font</string>
+    <string name="button_bitmaps_commands">Bitmaps</string>
+    <string name="button_layouts_commands">Layouts</string>
+    <string name="button_gauge_commands">Gauge</string>
+    <string name="button_page_commands">Page</string>
+    <string name="button_debug_commands">Debug</string>
+
+    <string-array name="langChoice">
+        <item>phone Default</item>
+        <item>Afrikaans</item>
+        <item>العربية</item>
+        <item>Беларуская</item>
+        <item>български език</item>
+        <item>বাংলা</item>
+        <item>Català</item>
+        <item>Česky</item>
+        <item>Cymraeg</item>
+        <item>Dansk</item>
+        <item>Deutsch</item>
+        <item>Ελληνικά</item>
+        <item>English</item>
+        <item>Esperanto</item>
+        <item>Español</item>
+        <item>Eesti keel</item>
+        <item>فارسی</item>
+        <item>Suomen kieli</item>
+        <item>Français</item>
+        <item>Gaeilge</item>
+        <item>Galego</item>
+        <item>ગુજરાતી</item>
+        <item>עברית</item>
+        <item>हिन्दी</item>
+        <item>Hrvatski</item>
+        <item>Kreyòl ayisyen</item>
+        <item>magyar</item>
+        <item>Bahasa Indonesia</item>
+        <item>Íslenska</item>
+        <item>Italiano</item>
+        <item>日本語</item>
+        <item>ქართული</item>
+        <item>ಕನ್ನಡ</item>
+        <item>한국어</item>
+        <item>Lietuvių kalba</item>
+        <item>Latviešu valoda</item>
+        <item>македонски јазик</item>
+        <item>मराठी</item>
+        <item>Bahasa Melayu</item>
+        <item>Malti</item>
+        <item>Nederlands</item>
+        <item>Norsk</item>
+        <item>Polski</item>
+        <item>Português</item>
+        <item>Română</item>
+        <item>русский язык</item>
+        <item>Slovenčina</item>
+        <item>Slovenščina</item>
+        <item>Shqip</item>
+        <item>Svenska</item>
+        <item>Kiswahili</item>
+        <item>தமிழ்</item>
+        <item>తెలుగు</item>
+        <item>ไทย</item>
+        <item>Tagalog</item>
+        <item>Türkçe</item>
+        <item>українська мова</item>
+        <item>اردو</item>
+        <item>Tiếng Việt</item>
+        <item>中文</item>
+    </string-array>
+
+</resources>

@@ -1,0 +1,52 @@
+plugins {id 'com.android.application'}
+
+def apikeyPropertiesFile = rootProject.file("./.env")
+def apikeyProperties = new Properties()
+apikeyProperties.load(new FileInputStream(apikeyPropertiesFile))
+
+android {
+    compileSdkVersion 34
+
+    defaultConfig {
+        applicationId "com.speech.demo"
+        minSdkVersion 23
+        targetSdkVersion 34
+        versionCode 10
+        versionName "2.2"
+
+        buildConfigField("String", "ACTIVELOOK_SDK_TOKEN", apikeyProperties['ACTIVELOOK_SDK_TOKEN'])
+        buildConfigField("int", "ACTIVELOOK_CFG_PASSWORD", apikeyProperties['ACTIVELOOK_CFG_PASSWORD'])
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        android.applicationVariants.all { variant ->
+            variant.outputs.all {
+                resValue "string", "app_version", "${defaultConfig.versionName}"
+                // rootProject.name is set in the file : settings.gradle
+                outputFileName = rootProject.name
+                outputFileName += "-v" + android.defaultConfig.versionName
+                if (variant.buildType.name == "release") {outputFileName += ".apk"}
+                else {outputFileName += "-debug.apk"}
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    namespace 'com.speech.demo'
+}
+
+dependencies {
+    implementation 'com.github.activelook:android-sdk:v4.5.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.google.mlkit:translate:17.0.1'
+}
