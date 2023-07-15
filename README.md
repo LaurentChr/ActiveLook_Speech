@@ -3,6 +3,8 @@
 Description : What is said around you is translated & displayed in your ActiveLook® A/R glasses
 
 <p align="center"> <img src="./ActiveLook_Speech2_1024.png"/ </p>
+
+
 The application can be found on GooglePlay :
     https://play.google.com/store/apps/details?id=com.speech.demo 
 
