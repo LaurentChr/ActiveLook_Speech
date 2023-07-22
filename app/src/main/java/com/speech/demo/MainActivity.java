@@ -234,7 +234,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             this.findViewById(R.id.connected_content).setVisibility(View.VISIBLE);
             this.findViewById(R.id.disconnected_content).setVisibility(View.GONE);
             g.clear();
-            try {g.loadConfiguration(new BufferedReader(new InputStreamReader(getAssets().open("fonts2.txt"))));}
+            try {g.loadConfiguration(new BufferedReader(new InputStreamReader(getAssets().open("microphone.txt"))));}
             catch (IOException e) {e.printStackTrace();}
 
             displayClock();
