@@ -56,6 +56,7 @@ import androidx.core.app.ActivityCompat;
 import com.activelook.activelooksdk.Glasses;
 import com.activelook.activelooksdk.types.ImgStreamFormat;
 import com.activelook.activelooksdk.types.Rotation;
+import com.activelook.activelooksdk.types.holdFlushAction;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
@@ -100,6 +101,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private SeekBar luminanceSeekBar, fontSizeSeekBar;
     private int line=0,  lineHeight=22, maxHeight=205, nbrLin=7, gbattery=0, topmrg=0, botmrg=0, lftmrg=0, rgtmrg=0;
     private String lang_Choice = "phone Default", trlang_Choice = "phone Default";
+    private Bitmap[] lines = new Bitmap[16]; // max 16 lines (256/16)
 
     @SuppressLint({"BatteryLife", "SetTextI18n", "DefaultLocale"})
     @RequiresApi(api = Build.VERSION_CODES.S)
@@ -663,25 +665,34 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     if (linWidth < maxWidth || txtlinTry.length() == 0) {txtlinTry = txtlin; txtlin = txtlin + ' ';}
                     else {// WE CAN WRITE txtlinTry in the glasses
                         Log.d(LOG_TAG, "Translate : linWidth = " + String.format("%d", linWidth));
-                        // delete next 2 lines or last line
-                        g.color((byte) 0);
-                        if (line < nbrLin) {
-                            g.rectf((short) 0, (short) (maxHeightmrg - (line + 1) * lineHeight),
-                                    (short) (304-lftmrg), (short) (maxHeightmrg - (line - 1) * lineHeight));
-                        }
-                        if (line == nbrLin) {
-                            g.rectf((short) 0, (short) 0, (short) 304, (short) lineHeight);
-                        }
-                        g.color((byte) 15);
+
                         // display next line to glasses
                         txtimg = textAsBitmap(txtlinTry, lineHeight - 2);
                         linWidth = txtimg.getWidth();
-                        g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                                (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
-                        line++;
-                        if (line >= nbrLin + 1) {
-                            line = 0;
+                        if (line <= nbrLin) {
+                            lines[line] = txtimg;
+                            g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                                    (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
                         }
+                        // if the screen is full, i.e. we have reached the max number of lines :
+                        if (line > nbrLin) {g.holdFlush(holdFlushAction.HOLD);
+                            // delete screen
+                            g.color((byte) 0);
+                            g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
+                            g.color((byte) 15);
+                            // every lines are shifted up and written in the glasses
+                            for (int k = 0; k < nbrLin; k++) {
+                                lines[k]=lines[k+1];
+                                g.imgStream(lines[k], ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                                        (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - k * lineHeight));
+                            }
+                            // the last lines is written here
+                            lines[nbrLin]=txtimg;
+                            g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                                    (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - nbrLin * lineHeight));
+                            g.holdFlush(holdFlushAction.FLUSH);
+                        }
+                        line++; if (line > nbrLin) {line = nbrLin + 1;} // the line counter is clamped at nbrLin+1
                         txtlin = txtlin.substring(txtlinTry.length() + 1) + ' ';
                         txtlinTry = "";
                     }
@@ -690,39 +701,30 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
             txtimg = textAsBitmap(txtlin, lineHeight - 2);
             linWidth = txtimg.getWidth();
-//            Log.d(LOG_TAG, "Translate : linWidth = " + String.format("%d",linWidth));
-            if (linWidth > maxWidth+8) { int lstart=0;
-                for (int l=10; l < txtlin.length()+1; l++) {
-                    txtlinTry = txtlin.substring(lstart,l);
-                    txtimg = textAsBitmap(txtlinTry, lineHeight - 2);
-                    linWidth = txtimg.getWidth();
-                    if (linWidth > maxWidth+8) {
-                        txtimg = textAsBitmap(txtlin.substring(lstart,l-1), lineHeight - 2);
-                        linWidth = txtimg.getWidth();
-                        // delete next line
-                        g.color((byte) 0);
-                        if (line < nbrLin) {g.rectf((short) 0, (short) (maxHeightmrg - (line + 1) * lineHeight),
-                                    (short) 304, (short) (maxHeightmrg - (line - 1) * lineHeight));}
-                        if (line == nbrLin) {g.rectf((short) 0, (short) 0, (short) 304, (short) lineHeight);}
-                        g.color((byte) 15);
-                        g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                                (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
-                        lstart=l-1;
-                        line++; if (line >= nbrLin + 1) {line = 0;}
-                    }
-                }
-                }
-            // delete next line
-            g.color((byte) 0);
-            if (line < nbrLin) {g.rectf((short) 0, (short) (maxHeightmrg - (line + 1) * lineHeight),
-                    (short) 304, (short) (maxHeightmrg - (line - 1) * lineHeight));}
-            if (line == nbrLin) { g.rectf((short) 0, (short) 0,
-                    (short) 304, (short) (maxHeightmrg - (line - 1) * lineHeight));}
-            //
-            g.color((byte) 15);
-            g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+            if (line <= nbrLin) {
+                lines[line]=txtimg;
+                g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
                         (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
-            line++; if (line >= nbrLin + 1) {line = 0;}
+            }
+            // if the screen is full, i.e. we have reached the max number of lines :
+            if (line > nbrLin) {g.holdFlush(holdFlushAction.HOLD);
+                // delete screen
+                g.color((byte) 0);
+                g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
+                g.color((byte) 15);
+                // every lines are shifted up and written in the glasses
+                for (int k = 0; k < nbrLin; k++) {
+                    lines[k]=lines[k+1];
+                    g.imgStream(lines[k], ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                            (short) (303-lftmrg - lines[k].getWidth()), (short) (maxHeightmrg - k * lineHeight));
+                }
+                // the last lines is written here
+                lines[nbrLin]=txtimg;
+                g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                        (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - nbrLin * lineHeight));
+                g.holdFlush(holdFlushAction.FLUSH);
+            }
+            line++; if (line > nbrLin) {line = nbrLin + 1;}
         }
     }
 
@@ -1137,4 +1139,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         return newLangCode;
     }
 
+    public void setLines(Bitmap[] lines) {
+        this.lines = lines;
     }
+}
