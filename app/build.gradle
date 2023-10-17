@@ -6,13 +6,14 @@ apikeyProperties.load(new FileInputStream(apikeyPropertiesFile))
 
 android {
     compileSdkVersion 34
+    namespace 'com.speech.demo'
 
     defaultConfig {
         applicationId "com.speech.demo"
         minSdkVersion 23
         targetSdkVersion 34
-        versionCode 10
-        versionName "2.2"
+        versionCode 11
+        versionName "2.3"
 
         buildConfigField("String", "ACTIVELOOK_SDK_TOKEN", apikeyProperties['ACTIVELOOK_SDK_TOKEN'])
         buildConfigField("int", "ACTIVELOOK_CFG_PASSWORD", apikeyProperties['ACTIVELOOK_CFG_PASSWORD'])
@@ -41,12 +42,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    namespace 'com.speech.demo'
+
 }
 
 dependencies {
-    implementation 'com.github.activelook:android-sdk:v4.5.1'
+    implementation 'com.github.activelook:android-sdk:v4.5.2'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.google.android.material:material:1.10.0'
     implementation 'com.google.mlkit:translate:17.0.1'
 }
