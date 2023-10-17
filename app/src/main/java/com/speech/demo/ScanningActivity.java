@@ -74,30 +74,30 @@ public class ScanningActivity extends AppCompatActivity {
             ScanningActivity.this.alsdk.stopScan();
             Toast.makeText(this, "Connecting to...", Toast.LENGTH_SHORT).show();
             device.connect(glasses -> {
-                if (glasses.isFirmwareAtLeast("4.10")) {
-                    if (glasses.compareFirmwareVersion("4.10") > 0) {
-                        runOnUiThread(() ->
-                            Toast.makeText(ScanningActivity.this, "Your glasses have a more recent " +
-                                    "firmware. Check the store for an update of this application",
-                                    Toast.LENGTH_LONG).show());
-                    }
-                    Intent returnIntent = new Intent();
-                    returnIntent.putExtra("connectedGlasses", glasses);
-                    ScanningActivity.this.setResult(Activity.RESULT_FIRST_USER, returnIntent);
-                    ((DemoApp) this.getApplication()).onConnected();
-                    ScanningActivity.this.finish();
-                } else {
-                    runOnUiThread(() ->
-                        Toast.makeText(ScanningActivity.this, "Update your glasses at least with firmware 4.10" +
-                            " to use this application", Toast.LENGTH_LONG).show());
-                }
-            },
-            discoveredGlasses -> runOnUiThread(() -> {
-                Toast.makeText(ScanningActivity.this, "Connection failure, waiting for reconnection", Toast.LENGTH_LONG).show();
-            }),
-            glasses -> {
-                ((DemoApp) this.getApplication()).onDisconnected();
-            });
+                        if (glasses.isFirmwareAtLeast("4.0")) {
+                            if (glasses.compareFirmwareVersion("4.0") > 0) {
+                                runOnUiThread(() ->
+                                        Toast.makeText(ScanningActivity.this, "Your glasses have a more recent " +
+                                                        "firmware. Check the store for an update of this application",
+                                                Toast.LENGTH_LONG).show());
+                            }
+                            Intent returnIntent = new Intent();
+                            returnIntent.putExtra("connectedGlasses", glasses);
+                            ScanningActivity.this.setResult(Activity.RESULT_FIRST_USER, returnIntent);
+                            ((DemoApp) this.getApplication()).onConnected();
+                            ScanningActivity.this.finish();
+                        } else {
+                            runOnUiThread(() ->
+                                    Toast.makeText(ScanningActivity.this, "Update your glasses at least with firmware 4.0" +
+                                            " to use this application", Toast.LENGTH_LONG).show());
+                        }
+                    },
+                    discoveredGlasses -> runOnUiThread(() -> {
+                        Toast.makeText(ScanningActivity.this, "Connection failure, waiting for reconnection", Toast.LENGTH_LONG).show();
+                    }),
+                    glasses -> {
+                        ((DemoApp) this.getApplication()).onDisconnected();
+                    });
         });
         /*
          * Scan / Stop scan button
