@@ -54,7 +54,8 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import com.activelook.activelooksdk.Glasses;
-import com.activelook.activelooksdk.types.ImgStreamFormat;
+import com.activelook.activelooksdk.types.ImgSaveFormat;
+//import com.activelook.activelooksdk.types.ImgStreamFormat;
 import com.activelook.activelooksdk.types.Rotation;
 import com.activelook.activelooksdk.types.holdFlushAction;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -83,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private Intent serviceIntent, recognizerIntent;
     private static final int REQUEST_RECORD_PERMISSION = 100;
     private Spinner LangChoice, trLangChoice;
-    private TextView returnedText, translatedText, largeText, GlassesBattery, fontSizeTextView;
+    private TextView returnedText, translatedText, largeText, GlassesBattery, fontSizeTextView, ScrollSizeTextView;
     private ToggleButton adjusmentSet;
     private ProgressBar progressBar;
     private SpeechRecognizer speech = null;
@@ -98,10 +99,15 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private Glasses connectedGlasses;
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     private Switch sensorSwitch;
-    private SeekBar luminanceSeekBar, fontSizeSeekBar;
-    private int line=0,  lineHeight=22, maxHeight=205, nbrLin=7, gbattery=0, topmrg=0, botmrg=0, lftmrg=0, rgtmrg=0;
+    private SeekBar luminanceSeekBar, fontSizeSeekBar, ScrollSizeSeekBar;
+    private int line=0,  lineHeight=22, maxHeight=205, nbrLin=7, gbattery=0, scroll=2,
+            topmrg=0, botmrg=0, lftmrg=0, rgtmrg=0;
     private String lang_Choice = "phone Default", trlang_Choice = "phone Default";
-    private Bitmap[] lines = new Bitmap[16]; // max 16 lines (256/16)
+    private byte img_nb=0;
+    private boolean not_firstline = false;
+    private final byte[] line_image = new byte[13]; // max 12 lines
+    private final int[] line_width = new int[13]; // max 12 lines
+    private final String[] line_text = new String[13]; // max 12 lines
 
     @SuppressLint({"BatteryLife", "SetTextI18n", "DefaultLocale"})
     @RequiresApi(api = Build.VERSION_CODES.S)
@@ -112,6 +118,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         // get the registerd values recorded from previous usage
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         lineHeight = sharedPreferences.getInt("lineHeightTxt", 22);
+        scroll = sharedPreferences.getInt("Scroll", 2);
         lang_Choice = sharedPreferences.getString("lang_Choice", "phone Default");
         langCode = getLangCode(lang_Choice);
         trlang_Choice = sharedPreferences.getString("trlang_Choice", "english");
@@ -160,6 +167,10 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         fontSizeSeekBar.setProgress(lineHeight-17);
         fontSizeTextView = this.findViewById(R.id.TextSizeView);
         fontSizeTextView.setText("Text size ("+String.format("%d",(lineHeight-1))+"px) : ");
+        ScrollSizeSeekBar = this.findViewById(R.id.ScrollSizeSeekBar);
+        ScrollSizeSeekBar.setProgress(scroll-1);
+        ScrollSizeTextView = this.findViewById(R.id.ScrollSizeView);
+        ScrollSizeTextView.setText("Scroll size ("+String.format("%d",scroll)+"px) : ");
 
         LangChoice = this.findViewById(R.id.lang_choice);
         String[] lang_Choices = getResources().getStringArray(R.array.langChoice);
@@ -203,6 +214,10 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         setSupportActionBar(toolbar);
         CollapsingToolbarLayout toolBarLayout = findViewById(R.id.toolbar_layout);
         toolBarLayout.setTitle(getTitle());
+        if (connectedGlasses!=null) {
+            connectedGlasses.cfgWrite("cfgTxt", 1, 1);
+            connectedGlasses.imgDeleteAll();
+        }
         this.updateVisibility();
         this.bindActions();
     }
@@ -291,7 +306,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 if (!old_langCode.equals(langCode) && !old_langCode.equals(trlangCode)){
                     // Delete the old model if it's on the device.
                     TranslateRemoteModel old_Model =
-                            new TranslateRemoteModel.Builder(Objects.requireNonNull(TranslateLanguage.fromLanguageTag(old_langCode))).build();
+                            new TranslateRemoteModel.Builder(Objects.requireNonNull(
+                                    TranslateLanguage.fromLanguageTag(old_langCode))).build();
                     modelManager.deleteDownloadedModel(old_Model)
                             .addOnSuccessListener(new OnSuccessListener<Void>() {
                                 @SuppressLint("RestrictedApi")
@@ -441,10 +457,19 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         fontSizeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @SuppressLint("DefaultLocale")
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser)
+            // min/max progress = 0/10, min/max linHeight = 17/27, min/max nbrLin = 4/12
             { lineHeight = progress+17; nbrLin = (int) ((231-topmrg-botmrg) / lineHeight - 1);
                 savePreferences();
 //                fontSizeTextView.setText("Text size ("+String.format("%d",(lineHeight-1))+"px) : ");
             }
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        ScrollSizeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @SuppressLint("DefaultLocale")
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser)
+            { scroll = progress+1; savePreferences(); }
             public void onStartTrackingTouch(SeekBar seekBar) {}
             public void onStopTrackingTouch(SeekBar seekBar) {}
         });
@@ -594,11 +619,13 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         ArrayList<String> matches = results
                 .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
         StringBuilder text = new StringBuilder();
+        assert matches != null;
         for (String result : matches)
             text.append(result).append("\n");
         final String[] textfr = {text.toString()};
         returnedText.setText(textfr[0]);
         fontSizeTextView.setText("Text size ("+String.format("%d",(lineHeight-1))+"px) : ");
+        ScrollSizeTextView.setText("Scroll size ("+String.format("%d",scroll)+"px) : ");
 
         if (translating) {
             Log.d(LOG_TAG, "Translate : LANG : " + langCode + "  trLANG : " + trlangCode);
@@ -608,7 +635,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                                 @Override
                                 public void onSuccess(@NonNull String translated_Textfr) {
                                     translatedText.setText("▶  " + translated_Textfr); // Translation successful.
-                                    write_glasses(translated_Textfr);
+                                    if (translated_Textfr!=null && translated_Textfr!="")
+                                      {write_glasses(translated_Textfr);}
                                 }
                             })
                     .addOnFailureListener(
@@ -620,7 +648,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                             });
         } else { // *****  NOT TRANSLATING  *****
             translatedText.setText("");
-            write_glasses(textfr[0]);
+            if (textfr[0]!=null && textfr[0]!="") {write_glasses(textfr[0]);}
         }
 
         if (gbattery !=0 ) {GlassesBattery.setText("Glasses battery : "+String.format("%d",gbattery)+"%");}
@@ -644,6 +672,11 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             g.cfgSet("ALooK");
 
             // split textfr into several lines
+            g.cfgSet("cfgTxt");
+            g.color((byte) 0);
+            g.cfgWrite("cfgTxt", 1, 1);
+            g.cfgSet("cfgTxt");
+            g.color((byte) 0);
             Bitmap txtimg;
             int linWidth, maxHeightmrg=maxHeight-topmrg, maxWidth=290-lftmrg-rgtmrg;
             String txtlin = "", txtlinTry = "";
@@ -662,6 +695,9 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     txtimg = textAsBitmap(txtlin, lineHeight - 2);
                     linWidth = txtimg.getWidth();
                     Log.d(LOG_TAG, "Translate : linWidth = " + String.format("%d",linWidth));
+                    if (linWidth == 0 || txtimg == null || txtlin == " ") {
+                        Log.d(LOG_TAG, "Translate FAILED !!! : linWidth = " + String.format("%d", linWidth));
+                    }
                     if (linWidth < maxWidth || txtlinTry.length() == 0) {txtlinTry = txtlin; txtlin = txtlin + ' ';}
                     else {// WE CAN WRITE txtlinTry in the glasses
                         Log.d(LOG_TAG, "Translate : linWidth = " + String.format("%d", linWidth));
@@ -669,29 +705,61 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                         // display next line to glasses
                         txtimg = textAsBitmap(txtlinTry, lineHeight - 2);
                         linWidth = txtimg.getWidth();
+                        if (linWidth == 0 || txtimg == null || txtlin == " ") {
+                            Log.d(LOG_TAG, "Translate FAILED !!! : linWidth = " + String.format("%d", linWidth));
+                        }
+                        g.cfgWrite("cfgTxt", 1, 1);
+                        g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+                        // if the screen is not full
                         if (line <= nbrLin) {
-                            lines[line] = txtimg;
-                            g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                                    (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
+                            line_image[line] = img_nb; line_width[line] = linWidth;
+                                line_text[line] = "0_"+txtlinTry;
+                            g.cfgWrite("cfgTxt", 1, 1);
+                            g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+                            g.cfgSet("cfgTxt");
+                            g.imgDisplay(img_nb, (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
                         }
                         // if the screen is full, i.e. we have reached the max number of lines :
-                        if (line > nbrLin) {g.holdFlush(holdFlushAction.HOLD);
-                            // delete screen
+                        if (line > nbrLin) {
+                            if (not_firstline) {
+                                // every lines are shifted up in the list
+                                for (int k = 0; k <= nbrLin; k++) {
+                                    line_image[k] = line_image[k + 1];
+                                    line_width[k] = line_width[k + 1];
+                                    line_text[k] = line_text[k + 1];
+                            Log.d(LOG_TAG, "Translate : ligne : " + k
+                                    + " - line_image : " + line_image[k]
+                                    + " - line_width : " + line_width[k]
+                                    + " - line_text : " + line_text[k]);} }
+                            not_firstline = true;
+                            line_image[line] = img_nb; line_width[line] = linWidth; line_text[line] = txtlinTry;
+                            Log.d(LOG_TAG, "Translate : ligne : " + line
+                                    + " - line_image : " + line_image[line]
+                                    + " - line_width : " + line_width[line]
+                                    + " - line_text : " + line_text[line]);                            g.cfgWrite("cfgTxt", 1, 1);
+                            g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+
+                            // lines are shifted up on the screen
                             g.color((byte) 0);
-                            g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
-                            g.color((byte) 15);
-                            // every lines are shifted up and written in the glasses
-                            for (int k = 0; k < nbrLin; k++) {
-                                lines[k]=lines[k+1];
-                                g.imgStream(lines[k], ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                                        (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - k * lineHeight));
+                            for (int l=lineHeight; l>=0; l=l-scroll) {if (l<scroll) {l=0;}
+                                g.cfgSet("cfgTxt");
+                                g.holdFlush(holdFlushAction.HOLD);
+                                // delete screen
+                                g.rectf((short) 0, (short) (256-28-topmrg), (short) 304, (short) 0);
+                                g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
+                                // each line is displayed
+                                for (int k = 1; k <= nbrLin; k++) {
+                                    g.imgDisplay(line_image[k], (short) (303 - lftmrg - line_width[k]),
+                                            (short) (maxHeightmrg - l - (k-1) * lineHeight));}
+                                g.holdFlush(holdFlushAction.FLUSH);
                             }
+                            g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
                             // the last lines is written here
-                            lines[nbrLin]=txtimg;
-                            g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                                    (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - nbrLin * lineHeight));
-                            g.holdFlush(holdFlushAction.FLUSH);
+                            g.imgDisplay(img_nb, (short) (303-lftmrg - linWidth),
+                                    (short) (maxHeightmrg - nbrLin * lineHeight));
                         }
+
+                        img_nb++; if (img_nb>12) {img_nb=0;}
                         line++; if (line > nbrLin) {line = nbrLin + 1;} // the line counter is clamped at nbrLin+1
                         txtlin = txtlin.substring(txtlinTry.length() + 1) + ' ';
                         txtlinTry = "";
@@ -701,30 +769,60 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
             txtimg = textAsBitmap(txtlin, lineHeight - 2);
             linWidth = txtimg.getWidth();
+            if (linWidth == 0 || txtimg == null || txtlin == " ") {
+                Log.d(LOG_TAG, "Translate FAILED !!! : linWidth = " + String.format("%d", linWidth));
+            }
+            g.cfgWrite("cfgTxt", 1, 1);
+            g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
             if (line <= nbrLin) {
-                lines[line]=txtimg;
-                g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                        (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - line * lineHeight));
+                line_image[line] = img_nb; line_width[line] = linWidth; line_text[line] = "1_"+txtlin;
+                g.cfgWrite("cfgTxt", 1, 1);
+                g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+                g.cfgSet("cfgTxt");
+                g.imgDisplay(img_nb, (short) (303-lftmrg - linWidth),
+                        (short) (maxHeightmrg - line * lineHeight));
             }
             // if the screen is full, i.e. we have reached the max number of lines :
-            if (line > nbrLin) {g.holdFlush(holdFlushAction.HOLD);
-                // delete screen
+            if (line > nbrLin) {
+                // every lines are shifted up in the list
+                if (not_firstline) { for (int k = 0; k <= nbrLin; k++) {
+                    line_image[k] = line_image[k + 1];
+                    line_width[k] = line_width[k + 1];
+                    line_text[k] = line_text[k + 1];
+                    Log.d(LOG_TAG, "Translate : ligne : " + k
+                            + " - line_image : " + line_image[k]
+                            + " - line_width : " + line_width[k]
+                            + " - line_text : " + line_text[k]);} }
+                not_firstline = true;
+                line_image[line] = img_nb; line_width[line] = linWidth; line_text[line] = "2_"+txtlin;
+                Log.d(LOG_TAG, "Translate : ligne : " + line
+                        + " - line_image : " + line_image[line]
+                        + " - line_width : " + line_width[line]
+                        + " - line_text : " + line_text[line]);
+                g.cfgWrite("cfgTxt", 1, 1);
+                g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+
+                // lines are shifted up on the screen by pixel line 1 per 1
                 g.color((byte) 0);
-                g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
-                g.color((byte) 15);
-                // every lines are shifted up and written in the glasses
-                for (int k = 0; k < nbrLin; k++) {
-                    lines[k]=lines[k+1];
-                    g.imgStream(lines[k], ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                            (short) (303-lftmrg - lines[k].getWidth()), (short) (maxHeightmrg - k * lineHeight));
+                for (int l=lineHeight; l>=0; l=l-scroll) {if (l<scroll) {l=0;}
+                    g.holdFlush(holdFlushAction.HOLD);
+                    // delete screen
+                    g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
+                    g.rectf((short) 0, (short) (256-28-topmrg), (short) 304, (short) 0);
+                    // each line is displayed
+                    g.cfgSet("cfgTxt");
+                    for (int k = 1; k <= nbrLin; k++) {
+                        g.imgDisplay(line_image[k], (short) (303 - lftmrg - line_width[k]),
+                                (short) (maxHeightmrg - (k-1)*lineHeight - l));}
+                    g.holdFlush(holdFlushAction.FLUSH);
                 }
+                g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
                 // the last lines is written here
-                lines[nbrLin]=txtimg;
-                g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
-                        (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - nbrLin * lineHeight));
-                g.holdFlush(holdFlushAction.FLUSH);
+                g.cfgSet("cfgTxt");
+                g.imgDisplay(img_nb, (short) (303-lftmrg - linWidth), (short) (maxHeightmrg - nbrLin * lineHeight));
             }
             line++; if (line > nbrLin) {line = nbrLin + 1;}
+            img_nb++; if (img_nb>12) {img_nb=0;}
         }
     }
 
@@ -832,6 +930,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         editor.putInt("lftmrg",lftmrg);
         editor.putInt("rgtmrg",rgtmrg);
         editor.putInt("lineHeightTxt",lineHeight);
+        editor.putInt("Scroll",scroll);
         editor.putString("lang_Choice",String.valueOf(LangChoice.getSelectedItem()));
         editor.putString("trlang_Choice",String.valueOf(trLangChoice.getSelectedItem()));
         editor.apply();
@@ -894,6 +993,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     protected void onPause() {super.onPause(); }
 
     protected void onStop() {super.onStop();
+//        connectedGlasses.cfgWrite("cfgTxt", 1, 1);
+        if(connectedGlasses!=null) {connectedGlasses.cfgDelete("cfgTxt");}
         if(clockHandler != null)
             clockHandler.removeCallbacks(clockRunnable); // On arrete le callback
     }
@@ -1139,7 +1240,4 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         return newLangCode;
     }
 
-    public void setLines(Bitmap[] lines) {
-        this.lines = lines;
-    }
 }
