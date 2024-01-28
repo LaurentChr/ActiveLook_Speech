@@ -12,8 +12,8 @@ android {
         applicationId "com.speech.demo"
         minSdkVersion 23
         targetSdkVersion 34
-        versionCode 12
-        versionName "2.3"
+        versionCode 13
+        versionName "2.4"
 
         buildConfigField("String", "ACTIVELOOK_SDK_TOKEN", apikeyProperties['ACTIVELOOK_SDK_TOKEN'])
         buildConfigField("int", "ACTIVELOOK_CFG_PASSWORD", apikeyProperties['ACTIVELOOK_CFG_PASSWORD'])
@@ -48,6 +48,6 @@ android {
 dependencies {
     implementation 'com.github.activelook:android-sdk:v4.5.3'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.google.mlkit:translate:17.0.2'
 }
