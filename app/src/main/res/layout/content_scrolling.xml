@@ -52,7 +52,7 @@
                 android:layout_height="10dp" />
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
+                android:layout_height="40dp"
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/GlassesBattery"
@@ -72,7 +72,6 @@
                     android:gravity="right"
                     tools:ignore="UseSwitchCompatOrMaterialXml" />
             </LinearLayout>
-
             <LinearLayout
                 android:id="@+id/lumaLinearLayout"
                 android:layout_width="match_parent"
@@ -155,17 +154,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:entries="@array/langChoice"
-                    android:layout_weight="3"
-                    android:textColor="@color/white"
                     android:spinnerStyle="@color/white"
                     android:dropDownSelector="@color/white"
+                    android:layout_weight="3"
+                    android:textColor="@color/black"
                     android:background="@color/secondary_700"
                     android:textSize="24sp" />
+
             </LinearLayout>
 
             <Space
                 android:layout_width="match_parent"
-                android:layout_height="12dp" />
+                android:layout_height="10dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -185,7 +185,6 @@
                     android:layout_height="match_parent"
                     android:entries="@array/langChoice"
                     android:layout_weight="4"
-                    android:textColor="@color/white"
                     android:spinnerStyle="@color/white"
                     android:dropDownSelector="@color/white"
                     android:background="@color/secondary_700"
@@ -276,8 +275,10 @@
             <ToggleButton
                 android:id="@+id/adjusment_set"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="24dp"
                 android:layout_gravity="center"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
                 android:background="@drawable/adjustment_color"
                 android:textOn="  glasses screen adjustment : ON "
                 android:textOff="  set glasses screen adjustment  "
@@ -305,7 +306,6 @@
                         android:id="@+id/topMinus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="-" />
                     <TextView
@@ -318,7 +318,6 @@
                         android:id="@+id/topPlus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="+" />
                 </LinearLayout>
@@ -331,7 +330,6 @@
                         android:id="@+id/leftMinus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="-" />
                     <TextView
@@ -344,7 +342,6 @@
                         android:id="@+id/leftPlus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="+" />
                     <TextView
@@ -358,7 +355,6 @@
                         android:id="@+id/rightMinus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="-" />
                     <TextView
@@ -372,7 +368,6 @@
                         android:id="@+id/rightPlus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:textStyle="bold"
                         android:text="+" />
                 </LinearLayout>
@@ -386,7 +381,6 @@
                         android:id="@+id/bottomMinus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:text="-" />
                     <TextView
                         android:id="@+id/bottomMargin"
@@ -398,7 +392,6 @@
                         android:id="@+id/bottomPlus"
                         android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="@color/white"
                         android:text="+" />
                 </LinearLayout>
             </LinearLayout>

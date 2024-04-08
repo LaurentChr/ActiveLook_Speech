@@ -6,27 +6,32 @@ import static java.lang.Math.max;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Typeface;
+import android.graphics.drawable.AdaptiveIconDrawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -52,16 +57,18 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.activelook.activelooksdk.Glasses;
+import com.activelook.activelooksdk.types.DeviceInformation;
 import com.activelook.activelooksdk.types.ImgSaveFormat;
-//import com.activelook.activelooksdk.types.ImgStreamFormat;
+import com.activelook.activelooksdk.types.ImgStreamFormat;
 import com.activelook.activelooksdk.types.Rotation;
 import com.activelook.activelooksdk.types.holdFlushAction;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
-
 import com.google.mlkit.common.model.DownloadConditions;
 import com.google.mlkit.common.model.RemoteModelManager;
 import com.google.mlkit.nl.translate.TranslateLanguage;
@@ -84,15 +91,20 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private Intent serviceIntent, recognizerIntent;
     private static final int REQUEST_RECORD_PERMISSION = 100;
     private Spinner LangChoice, trLangChoice;
-    private TextView returnedText, translatedText, largeText, GlassesBattery, fontSizeTextView, ScrollSizeTextView;
+    private TextView returnedText, translatedText, largeText, GlassesBattery,
+            fontSizeTextView, ScrollSizeTextView;
     private ToggleButton adjusmentSet;
     private ProgressBar progressBar;
     private SpeechRecognizer speech = null;
-    private String langCode= Locale.getDefault().getLanguage(), trlangCode="en";
+    private String langCode= Locale.getDefault().getLanguage(), trlangCode="en", 
+		prev_packageName="", prev_titleData="", prev_textData="";
+    private boolean notification = false;
     private boolean listening = false, translating = false, glassesSetting=false;
     private final Handler clockHandler = new Handler();
     private Runnable clockRunnable;
-    private final Notification notifica = new Notification();
+    Handler messageHandler = new Handler();
+    Runnable messageRunnable;
+//    private final Notification notifica = new Notification();
     Translator speechTranslator;
     TranslatorOptions options_2;
 
@@ -100,7 +112,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     @SuppressLint("UseSwitchCompatOrMaterialCode")
     private Switch sensorSwitch;
     private SeekBar luminanceSeekBar, fontSizeSeekBar, ScrollSizeSeekBar;
-    private int line=0,  lineHeight=22, maxHeight=205, nbrLin=7, gbattery=0, scroll=2,
+    private int nbConf=0, notif_cntr=0, line=0, lineHeight=22, maxHeight=205, nbrLin=7, gbattery=0, scroll=2,
             topmrg=0, botmrg=0, lftmrg=0, rgtmrg=0;
     private String lang_Choice = "phone Default", trlang_Choice = "phone Default";
     private byte img_nb=0;
@@ -128,15 +140,12 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         lftmrg = sharedPreferences.getInt("lftmrg", 0);
         rgtmrg = sharedPreferences.getInt("rgtmrg", 0);
 
-        notifica.defaults = 0;
-        String notificationChannelName="";
-        NotificationChannel channel = new NotificationChannel(notificationChannelName,
-                "channel", NotificationManager.IMPORTANCE_LOW);
-        channel.setSound(null, null);
-
-        NotificationManager nMgr = (NotificationManager)
+        NotificationManager notif = (NotificationManager)
                 getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        nMgr.cancel(0);
+        if (!notif.isNotificationPolicyAccessGranted()) {
+            startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(onNotice, new IntentFilter("Msg"));
 
         AudioManager amanager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
         amanager.setStreamVolume(AudioManager.STREAM_ALARM, 0, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
@@ -175,12 +184,14 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         LangChoice = this.findViewById(R.id.lang_choice);
         String[] lang_Choices = getResources().getStringArray(R.array.langChoice);
         ArrayAdapter adapter_lang = new ArrayAdapter(this, R.layout.list_item, lang_Choices);
+        adapter_lang.setDropDownViewResource(R.layout.spinner_dropdown_item);
         LangChoice.setAdapter(adapter_lang);
         LangChoice.setSelection(Arrays.asList(lang_Choices).indexOf(lang_Choice));
 
         trLangChoice = this.findViewById(R.id.trlang_choice);
         String[] trlang_Choices = getResources().getStringArray(R.array.langChoice);
         ArrayAdapter adapter_trlang = new ArrayAdapter(this, R.layout.list_item, trlang_Choices);
+        adapter_trlang.setDropDownViewResource(R.layout.spinner_dropdown_item);
         trLangChoice.setAdapter(adapter_trlang);
         trLangChoice.setSelection(Arrays.asList(trlang_Choices).indexOf(trlang_Choice));
 
@@ -217,10 +228,96 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         if (connectedGlasses!=null) {
             connectedGlasses.cfgWrite("cfgTxt", 1, 1);
             connectedGlasses.imgDeleteAll();
+            // delete previous configs to free memory in the glasses
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { connectedGlasses.cfgList(r -> nbConf=(int) r.stream().count()); }
+            for (int j = 1; j < nbConf; j++) {connectedGlasses.cfgDeleteLessUsed();}
+            try {connectedGlasses.loadConfiguration(new BufferedReader(new InputStreamReader(getAssets().open("microphone.txt"))));}
+            catch (IOException e) {e.printStackTrace();}
         }
+
         this.updateVisibility();
         this.bindActions();
     }
+
+//---------------------------------------------------------------------------------
+
+    public final BroadcastReceiver onNotice = new BroadcastReceiver() {
+        @SuppressLint("SetTextI18n")
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final Glasses g = connectedGlasses;
+            String packageName = intent.getStringExtra("package");
+            String titleData = intent.getStringExtra("title");
+            String textData = intent.getStringExtra("text");
+            @SuppressLint("SimpleDateFormat") SimpleDateFormat sdf2 = new SimpleDateFormat("HH:mm:ss");
+            String time = sdf2.format(new Date());
+            Log.d("MainActivity", "Translate Notif : " + time + " : " + packageName
+                    + " : " + titleData + " : " + textData);
+            boolean displayData = true;
+
+
+            // filter some messages
+            if (packageName.equals("com.android.systemui")) {displayData = false;}
+            if (packageName.equals("com.android.vending")) {displayData = false;}
+            if (packageName.equals(prev_packageName) && titleData.equals(prev_titleData)
+                    && textData.equals(prev_textData)) {displayData = false;}
+
+            if(displayData) {
+                prev_packageName = packageName; prev_titleData = titleData; prev_textData = textData;
+
+                //================= PREPARE TO WRITE IN THE GLASSES
+
+                // shape the notification text then turn into image
+                String textfr;
+                textfr = titleData + " : " + textData + ' ';
+                textfr = textfr.replaceAll("\n\r"," ");
+                textfr = textfr.replaceAll("\r\n"," ");
+                textfr = textfr.replaceAll("\n"," ");
+                textfr = textfr.replaceAll("\t"," ");
+                textfr = textfr.replaceAll("\r"," ");
+                for (int j = 0; j < 32; j++) {
+                    textfr = textfr.replaceAll(String.valueOf((char) j),""); }
+                Bitmap txtimg = textAsBitmap(textfr,22);
+                int linWidth = txtimg.getWidth();
+
+                notification = true; notif_cntr=0;
+                messageHandler.removeCallbacks(messageRunnable);
+                int delay = 3 * 10000/100; // 2=shift notif_cntr++ ; 10000 = delay of 10 seconds
+                final Bitmap[] sub_txtimg = new Bitmap[1];
+                messageRunnable = new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        if (g!=null && notification && linWidth > 0) {
+                            // write NOTIFICATION
+                            if (linWidth < 305 && notif_cntr == 0) {
+                                g.imgStream(txtimg, ImgStreamFormat.MONO_4BPP_HEATSHRINK,
+                                    (short)(304+notif_cntr-txtimg.getWidth()), (short) 231);}
+                            if (linWidth > notif_cntr+303) {
+                                Log.d("MainActivity", "receivedNotif : " + sdf2.format(new Date())
+                                        + " notif_cntr = " + notif_cntr + " - linWidth = " + linWidth );
+                                g.imgStream(Bitmap.createBitmap(txtimg, notif_cntr, 0, 304,24),
+                                        ImgStreamFormat.MONO_4BPP_HEATSHRINK, (short) 0, (short) 231);}
+                            // end of NOTIFICATION
+                            if ((linWidth < 305 && notif_cntr > delay) || (linWidth > 304 && notif_cntr > linWidth-303 + delay)) {
+                                notification=false;
+                                notif_cntr =0;
+                                messageHandler.removeCallbacks(messageRunnable);
+                                g.color((byte)0); g.rectf((short)0,(short)224,(short)304,(short)255); g.color((byte)15);
+                                displayClock();}
+                        }
+                        notif_cntr++;
+                        notif_cntr++; // shift by 2 pixels the message
+                        notif_cntr++; // shift by 3 pixels the message
+                        messageHandler.postDelayed(this, 200);
+                    }
+                }; // new message Runnable
+
+                messageHandler.removeCallbacks(messageRunnable);
+                messageHandler.postDelayed(messageRunnable,100); // on redemande toutes les 200ms
+            }
+        }
+    };
 
     //---------------------------------------------------------------------------------
 
@@ -251,9 +348,6 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             this.findViewById(R.id.connected_content).setVisibility(View.VISIBLE);
             this.findViewById(R.id.disconnected_content).setVisibility(View.GONE);
             g.clear();
-            try {g.loadConfiguration(new BufferedReader(new InputStreamReader(getAssets().open("microphone.txt"))));}
-            catch (IOException e) {e.printStackTrace();}
-
             displayClock();
 
             clockRunnable = new Runnable() {
@@ -295,7 +389,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         LangChoice.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String old_langCode = langCode;
+                ((TextView) parent.getChildAt(0)).setTextColor(ContextCompat.getColor(MainActivity.this,R.color.black));
+				String old_langCode = langCode;
                 RemoteModelManager modelManager = RemoteModelManager.getInstance();
 
                 lang_Choice = (String) parent.getItemAtPosition(position);
@@ -370,7 +465,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         trLangChoice.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String old_trlangCode = trlangCode;
+                ((TextView) parent.getChildAt(0)).setTextColor(ContextCompat.getColor(MainActivity.this,R.color.black));
+				String old_trlangCode = trlangCode;
                 RemoteModelManager modelManager = RemoteModelManager.getInstance();
 
                 trlang_Choice = (String) parent.getItemAtPosition(position);
@@ -629,23 +725,26 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         if (translating) {
             Log.d(LOG_TAG, "Translate : LANG : " + langCode + "  trLANG : " + trlangCode);
-            speechTranslator.translate(textfr[0])
-                    .addOnSuccessListener(
-                            new OnSuccessListener<String>() {
-                                @Override
-                                public void onSuccess(@NonNull String translated_Textfr) {
-                                    translatedText.setText("▶  " + translated_Textfr); // Translation successful.
-                                    if (translated_Textfr!=null && translated_Textfr!="")
-                                      {write_glasses(translated_Textfr);}
-                                }
-                            })
-                    .addOnFailureListener(
-                            new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    translatedText.setText("No translation ...");
-                                }
-                            });
+            if(textfr[0].length()>0) {
+                speechTranslator.translate(textfr[0])
+                        .addOnSuccessListener(
+                                new OnSuccessListener<String>() {
+                                    @Override
+                                    public void onSuccess(@NonNull String translated_Textfr) {
+                                        translatedText.setText("▶  " + translated_Textfr); // Translation successful.
+                                        if (translated_Textfr != null && translated_Textfr != "") {
+                                            write_glasses(translated_Textfr);
+                                        }
+                                    }
+                                })
+                        .addOnFailureListener(
+                                new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        translatedText.setText("No translation ...");
+                                    }
+                                });
+            }
         } else { // *****  NOT TRANSLATING  *****
             translatedText.setText("");
             if (textfr[0]!=null && textfr[0]!="") {write_glasses(textfr[0]);}
@@ -672,11 +771,9 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             g.cfgSet("ALooK");
 
             // split textfr into several lines
-            g.cfgSet("cfgTxt");
             g.color((byte) 0);
             g.cfgWrite("cfgTxt", 1, 1);
             g.cfgSet("cfgTxt");
-            g.color((byte) 0);
             Bitmap txtimg;
             int linWidth, maxHeightmrg=maxHeight-topmrg, maxWidth=290-lftmrg-rgtmrg;
             String txtlin = "", txtlinTry = "";
@@ -727,16 +824,17 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                                     line_image[k] = line_image[k + 1];
                                     line_width[k] = line_width[k + 1];
                                     line_text[k] = line_text[k + 1];
-                            Log.d(LOG_TAG, "Translate : ligne : " + k
+                            Log.d(LOG_TAG, "Translate : 1 - line : " + k
                                     + " - line_image : " + line_image[k]
                                     + " - line_width : " + line_width[k]
                                     + " - line_text : " + line_text[k]);} }
                             not_firstline = true;
                             line_image[line] = img_nb; line_width[line] = linWidth; line_text[line] = txtlinTry;
-                            Log.d(LOG_TAG, "Translate : ligne : " + line
+                            Log.d(LOG_TAG, "Translate : 2 - line : " + line
                                     + " - line_image : " + line_image[line]
                                     + " - line_width : " + line_width[line]
-                                    + " - line_text : " + line_text[line]);                            g.cfgWrite("cfgTxt", 1, 1);
+                                    + " - line_text : " + line_text[line]);
+                            g.cfgWrite("cfgTxt", 1, 1);
                             g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
 
                             // lines are shifted up on the screen
@@ -748,12 +846,15 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                                 g.rectf((short) 0, (short) (256-28-topmrg), (short) 304, (short) 0);
                                 g.rectf((short) 0, (short) (maxHeightmrg - lineHeight), (short) 304, (short) 0);
                                 // each line is displayed
+                                g.cfgSet("cfgTxt");
                                 for (int k = 1; k <= nbrLin; k++) {
                                     g.imgDisplay(line_image[k], (short) (303 - lftmrg - line_width[k]),
                                             (short) (maxHeightmrg - l - (k-1) * lineHeight));}
                                 g.holdFlush(holdFlushAction.FLUSH);
                             }
+                            g.cfgWrite("cfgTxt", 1, 1);
                             g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
+                            g.cfgSet("cfgTxt");
                             // the last lines is written here
                             g.imgDisplay(img_nb, (short) (303-lftmrg - linWidth),
                                     (short) (maxHeightmrg - nbrLin * lineHeight));
@@ -789,13 +890,13 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     line_image[k] = line_image[k + 1];
                     line_width[k] = line_width[k + 1];
                     line_text[k] = line_text[k + 1];
-                    Log.d(LOG_TAG, "Translate : ligne : " + k
+                    Log.d(LOG_TAG, "Translate : 3 - line : " + k
                             + " - line_image : " + line_image[k]
                             + " - line_width : " + line_width[k]
                             + " - line_text : " + line_text[k]);} }
                 not_firstline = true;
                 line_image[line] = img_nb; line_width[line] = linWidth; line_text[line] = "2_"+txtlin;
-                Log.d(LOG_TAG, "Translate : ligne : " + line
+                Log.d(LOG_TAG, "Translate : 4 -line : " + line
                         + " - line_image : " + line_image[line]
                         + " - line_width : " + line_width[line]
                         + " - line_text : " + line_text[line]);
@@ -816,6 +917,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                                 (short) (maxHeightmrg - (k-1)*lineHeight - l));}
                     g.holdFlush(holdFlushAction.FLUSH);
                 }
+                g.cfgWrite("cfgTxt", 1, 1);
                 g.imgSave(img_nb, txtimg, ImgSaveFormat.MONO_4BPP_HEATSHRINK_SAVE_COMP);
                 // the last lines is written here
                 g.cfgSet("cfgTxt");
@@ -845,6 +947,42 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         c.drawText(text, 0, baseline, tp);
         return image;
     }
+
+    public Bitmap getResizedBitmap(Bitmap bm, int newWidth, int newHeight) {
+        int width = bm.getWidth(), height = bm.getHeight();
+        float scaleWidth = ((float) newWidth) / width, scaleHeight = ((float) newHeight) / height;
+        // CREATE A MATRIX FOR THE MANIPULATION
+        Matrix matrix = new Matrix();
+        // RESIZE THE BIT MAP
+        matrix.postScale(scaleWidth, scaleHeight);
+        // "RECREATE" THE NEW BITMAP
+        Bitmap resizedBitmap = Bitmap.createBitmap(bm, 0, 0, width, height, matrix, false);
+        bm.recycle();
+        return resizedBitmap;
+    }
+
+    public Bitmap getDefaultBitmap(Drawable d) {
+        if (d instanceof BitmapDrawable) {
+            return ((BitmapDrawable) d).getBitmap();
+        } else if ((Build.VERSION.SDK_INT >= 26)
+                && (d instanceof AdaptiveIconDrawable)) {
+            AdaptiveIconDrawable icon = ((AdaptiveIconDrawable)d);
+            int w = icon.getIntrinsicWidth();
+            int h = icon.getIntrinsicHeight();
+            Bitmap result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(result);
+            canvas.drawColor(0);
+            canvas.drawBitmap(result, 0F, 0F, null);
+            icon.setBounds(0, 0, w, h);
+            icon.draw(canvas);
+            return result;
+        }
+        float density = this.getResources().getDisplayMetrics().density;
+        int defaultWidth = (int)(48* density);
+        int defaultHeight = (int)(48* density);
+        return Bitmap.createBitmap(defaultWidth, defaultHeight, Bitmap.Config.ARGB_8888);
+    }
+
 
     @Override
     public void onPartialResults(Bundle results) {
@@ -902,7 +1040,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         String clock = sdf.format(new Date());
         int top=255-topmrg;
         final Glasses g = connectedGlasses;
-        if (g != null) {
+        if (g != null && !notification) {
+            messageHandler.removeCallbacks(messageRunnable);
             g.battery(r1 -> { gbattery=r1;
                 connectedGlasses.cfgSet("ALooK");
                 if (r1 < 25) {connectedGlasses.imgDisplay((byte) 1, (short) (272-lftmrg), (short) (top-26));}
@@ -918,8 +1057,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private void setUIGlassesInformations() {
         final Glasses glasses = this.connectedGlasses;
         glasses.settings(r -> sensorSwitch.setChecked(r.isGestureEnable()));
-        glasses.settings(r -> luminanceSeekBar.setProgress(r.getLuma()));
-    }
+        glasses.settings(r -> luminanceSeekBar.setProgress(r.getLuma()));   }
 
     @SuppressLint({"SetTextI18n", "SuspiciousIndentation"})
     private void savePreferences() {
@@ -997,12 +1135,16 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         if(connectedGlasses!=null) {connectedGlasses.cfgDelete("cfgTxt");}
         if(clockHandler != null)
             clockHandler.removeCallbacks(clockRunnable); // On arrete le callback
+        if(messageHandler != null)
+            messageHandler.removeCallbacks(messageRunnable);
     }
 
     protected void onDestroy() {super.onDestroy(); speechTranslator.close();
         if (serviceIntent != null) { stopService(serviceIntent); serviceIntent = null; }
         if(clockHandler != null)
             clockHandler.removeCallbacks(clockRunnable); // On arrete le callback
+        if(messageHandler != null)
+            messageHandler.removeCallbacks(messageRunnable);
     }
 
     @Override
@@ -1043,6 +1185,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             MainActivity.this.connectedGlasses.disconnect();
             MainActivity.this.connectedGlasses = null;
             MainActivity.this.updateVisibility();
+        if(messageHandler != null)
+            messageHandler.removeCallbacks(messageRunnable);
         });
     }
 

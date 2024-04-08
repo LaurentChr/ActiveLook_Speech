@@ -4,15 +4,17 @@
     <color name="primary_700">#FF1122CC</color>
     <color name="secondary_200">#FF1080F9</color>
     <color name="secondary_700">#FF20A0F9</color>
-    <color name="purple_200">#FFBB86FC</color>
+	<color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="success">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
-    <color name="grey">#FFBBBBBB</color>
+    <color name="grey">#FF808080</color>
     <color name="white">#FFFFFFFF</color>
     <color name="green">#FF1BC830</color>
     <color name="warning">#FFFC5609</color>
     <color name="error">#FFFE3639</color>
+    <color name="textColor">#FF000000</color>
+    <color name="backgroundColor">#FFFFFFFF</color>
 </resources>
