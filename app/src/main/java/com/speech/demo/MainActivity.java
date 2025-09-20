@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private ToggleButton adjusmentSet;
     private ProgressBar progressBar;
     private SpeechRecognizer speech = null;
-    private String langCode= Locale.getDefault().getLanguage(), trlangCode="en", 
+    private String langCode= Locale.getDefault().getLanguage(), trlangCode="en",
 		prev_packageName="", prev_titleData="", prev_textData="";
     private boolean notification = false;
     private boolean listening = false, translating = false, glassesSetting=false;
@@ -147,6 +147,11 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         }
         LocalBroadcastManager.getInstance(this).registerReceiver(onNotice, new IntentFilter("Msg"));
 
+        // Request microphone permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 1);
+        }
         AudioManager amanager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
         amanager.setStreamVolume(AudioManager.STREAM_ALARM, 0, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
         amanager.setStreamMute(AudioManager.STREAM_ALARM, true);
@@ -228,8 +233,9 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         if (connectedGlasses!=null) {
             connectedGlasses.cfgWrite("cfgTxt", 1, 1);
             connectedGlasses.imgDeleteAll();
+            connectedGlasses.sensor(false);
             // delete previous configs to free memory in the glasses
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { connectedGlasses.cfgList(r -> nbConf=(int) r.stream().count()); }
+            connectedGlasses.cfgList(r -> nbConf = (int) r.stream().count());
             for (int j = 1; j < nbConf; j++) {connectedGlasses.cfgDeleteLessUsed();}
             try {connectedGlasses.loadConfiguration(new BufferedReader(new InputStreamReader(getAssets().open("microphone.txt"))));}
             catch (IOException e) {e.printStackTrace();}
@@ -257,10 +263,18 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
 
             // filter some messages
+            assert packageName != null;
             if (packageName.equals("com.android.systemui")) {displayData = false;}
             if (packageName.equals("com.android.vending")) {displayData = false;}
-            if (packageName.equals(prev_packageName) && titleData.equals(prev_titleData)
-                    && textData.equals(prev_textData)) {displayData = false;}
+            if (packageName.equals(prev_packageName)) {
+                assert titleData != null;
+                if (titleData.equals(prev_titleData)) {
+                    assert textData != null;
+                    if (textData.equals(prev_textData)) {
+                        displayData = false;
+                    }
+                }
+            }
 
             if(displayData) {
                 prev_packageName = packageName; prev_titleData = titleData; prev_textData = textData;
@@ -282,7 +296,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
                 notification = true; notif_cntr=0;
                 messageHandler.removeCallbacks(messageRunnable);
-                int delay = 3 * 10000/100; // 2=shift notif_cntr++ ; 10000 = delay of 10 seconds
+                int delay = 3 * 20000/100; // 2=shift notif_cntr++ ; 10000 = delay of 20 seconds
                 final Bitmap[] sub_txtimg = new Bitmap[1];
                 messageRunnable = new Runnable() {
                     @SuppressLint("DefaultLocale")
@@ -326,16 +340,16 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         speech = SpeechRecognizer.createSpeechRecognizer(this);
 //        Log.i(LOG_TAG, "isRecognitionAvailable: " + SpeechRecognizer.isRecognitionAvailable(this));
         speech.setRecognitionListener(this);
-        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        recognizerIntent = new Intent(RecognizerIntent.EXTRA_PREFER_OFFLINE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            recognizerIntent = new Intent(RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY);
-            recognizerIntent = new Intent(RecognizerIntent.EXTRA_ENABLE_FORMATTING);
-            recognizerIntent = new Intent(RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY);
-        }
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, langCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+//        recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+//        recognizerIntent = new Intent(RecognizerIntent.EXTRA_PREFER_OFFLINE);
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//            recognizerIntent = new Intent(RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY);
+//            recognizerIntent = new Intent(RecognizerIntent.EXTRA_ENABLE_FORMATTING);
+//            recognizerIntent = new Intent(RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY);
+//        }
+//        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, langCode);
+//        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+//        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
     }
 
     @SuppressLint("DefaultLocale")
@@ -371,7 +385,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Toast.makeText(getApplicationContext(),
                     "Your BLUETOOTH is not open !!!\n>>>relaunch the application", Toast.LENGTH_LONG).show();
             largeText.setText("Your BlueTooth is not open !!\n\n" +
-                    "Please open BlueTooth and\n\n relaunch the application.");
+                    "GPS in background is needed only for the Bluetooth LE.\n" +
+                    "Please open GPS and BlueTooth and\n\n relaunch the application.");
             largeText.setTextColor(Color.parseColor("#FF0000"));
             largeText.setTypeface(largeText.getTypeface(), Typeface.BOLD);
         }
@@ -382,7 +397,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         this.findViewById(R.id.button_disconnect).setOnClickListener(view -> {
             MainActivity.this.sensorSwitch(true);
-            connectedGlasses.sensor(true);
+            connectedGlasses.sensor(false);
             MainActivity.this.disconnect();
         });
 
@@ -580,6 +595,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 progressBar.setIndeterminate(true);
                 ActivityCompat.requestPermissions(MainActivity.this,
                         new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_PERMISSION);
+                startListening();
             }
             else {listening = false; turnOf();
                 progressBar.setIndeterminate(false);
@@ -698,11 +714,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 //        Log.d(LOG_TAG, "Translate : errorCode : " + errorMessage);
 //        Log.d(LOG_TAG, "Translate : LANG : " + langCode + "  trLANG : " + trlangCode);
 //        returnedText.setText(errorMessage);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, langCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, langCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, langCode);
-        speech.startListening(recognizerIntent);
+        startListening();
     }
 
     //---------------------------------------------------------------------------------
@@ -711,7 +723,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     @Override
     public void onResults(Bundle results) {
 //        Log.i(LOG_TAG, "onResults");
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 2);
+//        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 2);
         ArrayList<String> matches = results
                 .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
         StringBuilder text = new StringBuilder();
@@ -725,7 +737,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         if (translating) {
             Log.d(LOG_TAG, "Translate : LANG : " + langCode + "  trLANG : " + trlangCode);
-            if(textfr[0].length()>0) {
+            if(!textfr[0].isEmpty()) {
                 speechTranslator.translate(textfr[0])
                         .addOnSuccessListener(
                                 new OnSuccessListener<String>() {
@@ -747,16 +759,18 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             }
         } else { // *****  NOT TRANSLATING  *****
             translatedText.setText("");
-            if (textfr[0]!=null && textfr[0]!="") {write_glasses(textfr[0]);}
+            if (!textfr[0].equals("")) {write_glasses(textfr[0]);}
         }
 
         if (gbattery !=0 ) {GlassesBattery.setText("Glasses battery : "+String.format("%d",gbattery)+"%");}
 
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, langCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, langCode);
-        recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-        speech.startListening(recognizerIntent);
-    }
+        // Small delay before restarting listening
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                startListening();
+            }
+        }, 100);    }
 
 //---------------------------------------------------------------------------------
 
@@ -795,7 +809,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     if (linWidth == 0 || txtimg == null || txtlin == " ") {
                         Log.d(LOG_TAG, "Translate FAILED !!! : linWidth = " + String.format("%d", linWidth));
                     }
-                    if (linWidth < maxWidth || txtlinTry.length() == 0) {txtlinTry = txtlin; txtlin = txtlin + ' ';}
+                    if (linWidth < maxWidth || txtlinTry.isEmpty()) {txtlinTry = txtlin; txtlin = txtlin + ' ';}
                     else {// WE CAN WRITE txtlinTry in the glasses
                         Log.d(LOG_TAG, "Translate : linWidth = " + String.format("%d", linWidth));
 
@@ -996,7 +1010,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     @Override
     public void onEvent(int i, Bundle bundle) {}
 
-    public void turnOf(){speech.stopListening(); speech.destroy();
+    public void turnOf(){speech.stopListening();
+        if (speech!= null ) {speech.destroy();}
         speechTranslator.close();}
 
     @Override
@@ -1005,7 +1020,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         if (requestCode == REQUEST_RECORD_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(MainActivity.this, "start talk...", Toast.LENGTH_SHORT).show();
-                speech.startListening(recognizerIntent);}
+                startListening();}
             else {Toast.makeText(MainActivity.this, "Permission Denied!", Toast.LENGTH_SHORT).show();}
         }
     }
@@ -1074,6 +1089,16 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         editor.apply();
     }
 
+    private void startListening() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, langCode);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true); // ✅ Enable live speech results
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say something...");
+        speech.startListening(intent);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -1103,7 +1128,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Toast.makeText(getApplicationContext(), "Your BlueTooth is not open !!!",
                     Toast.LENGTH_LONG).show();
             largeText.setText("Your BlueTooth is not open !!\n\n" +
-                    "Please open BlueTooth and\n\n relaunch the application.");
+                    "GPS in background is needed only for the Bluetooth LE.\n" +
+                    "Please open GPS and BlueTooth and\n\n relaunch the application.");
             largeText.setTextColor(Color.parseColor("#FF0000"));
             largeText.setTypeface(largeText.getTypeface(), Typeface.BOLD);
         }
@@ -1121,7 +1147,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Toast.makeText(getApplicationContext(), "Your BlueTooth is not open !!!",
                     Toast.LENGTH_LONG).show();
             largeText.setText("Your BlueTooth is not open !!\n\n" +
-                    "Please open BlueTooth and\n\n relaunch the application.");
+                    "GPS in background is needed only for the Bluetooth LE.\n" +
+                    "Please open GPS and BlueTooth and\n\n relaunch the application.");
             largeText.setTextColor(Color.parseColor("#FF0000"));
             largeText.setTypeface(largeText.getTypeface(), Typeface.BOLD);
         }
@@ -1131,20 +1158,25 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     protected void onPause() {super.onPause(); }
 
     protected void onStop() {super.onStop();
+        if (speech!= null ) {speech.destroy();}
 //        connectedGlasses.cfgWrite("cfgTxt", 1, 1);
         if(connectedGlasses!=null) {connectedGlasses.cfgDelete("cfgTxt");}
         if(clockHandler != null)
             clockHandler.removeCallbacks(clockRunnable); // On arrete le callback
         if(messageHandler != null)
             messageHandler.removeCallbacks(messageRunnable);
+        connectedGlasses.sensor(false);
+        MainActivity.this.disconnect();
     }
 
-    protected void onDestroy() {super.onDestroy(); speechTranslator.close();
+    protected void onDestroy() {super.onDestroy(); speech.destroy(); speechTranslator.close();
         if (serviceIntent != null) { stopService(serviceIntent); serviceIntent = null; }
         if(clockHandler != null)
             clockHandler.removeCallbacks(clockRunnable); // On arrete le callback
         if(messageHandler != null)
             messageHandler.removeCallbacks(messageRunnable);
+        connectedGlasses.sensor(false);
+        MainActivity.this.disconnect();
     }
 
     @Override
@@ -1185,13 +1217,14 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             MainActivity.this.connectedGlasses.disconnect();
             MainActivity.this.connectedGlasses = null;
             MainActivity.this.updateVisibility();
-        if(messageHandler != null)
-            messageHandler.removeCallbacks(messageRunnable);
+            if (speech!= null ) {speech.destroy();}
+            if(messageHandler != null)
+                messageHandler.removeCallbacks(messageRunnable);
         });
     }
 
     private String getLangCode(String Choice) {
-        String newLangCode = "";
+        String newLangCode;
         switch (Choice) {
             case "phone Default" : newLangCode = Locale.getDefault().getLanguage(); break;
             case "Afaraf" : newLangCode = "aa"; break;
