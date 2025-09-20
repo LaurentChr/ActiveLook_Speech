@@ -35,14 +35,6 @@ Known supported Devices :
 - Julbo EVAD® : Premium smart glasses providing live data for intense sporting experiences (https://www.julbo.com/en_gb/evad-1)
 - Cosmo Connected : GPS & cycling (https://cosmoconnected.com/fr/produits-velo-trottinette/cosmo-vision)
 
-### File to create and add at the root : .env
-
-First, you need to add a file called '.env' at the source of the project. This file will contain only 2 lines :
-```
-ACTIVELOOK_SDK_TOKEN = ""
-ACTIVELOOK_CFG_PASSWORD = 0xDEADBEEF
-```
-
 ### Main files to modify
 
 The name of the app is defined in the strings.xml file.
